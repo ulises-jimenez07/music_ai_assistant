@@ -60,14 +60,14 @@ repos:
     - --config=./pyproject.toml
 
 - repo: https://github.com/PyCQA/pylint
-  rev: v3.3.4
+  rev: v3.3.6
   hooks:
   - id: pylint
     args:
     - --rcfile=./pyproject.toml
 
 - repo: https://github.com/pycqa/isort
-  rev: 6.0.0
+  rev: 6.0.1
   hooks:
   - id: isort
     args:

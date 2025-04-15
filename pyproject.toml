@@ -1,14 +1,13 @@
 [project]
-name = "MG_questions_generator"
-authors = [{ name = "Ulises Jimenez", email = "ulisesjimenez@google.com" },
-{ name = "Andres Toledo", email = "aatoledo@google.com" }]
-description = "Solution to create questions for a Meet and Greet"
+name = "Music "
+authors = [{ name = "Ulises Jimenez", email = "ulises.jimenez07@gmail.com" }]
+description = "Solution to create python code to analyze music data"
 readme = "README.md"
 requires-python = ">=3.12"
 keywords = ["gcp", "genAI"]
 license = { text = "Apache License" }
 classifiers = ["Programming Language :: Python :: 3"]
-dependencies = ["gradio"]
+dependencies = ["streamlit"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
