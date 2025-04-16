@@ -7,9 +7,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy shared modules and data
 COPY data_utils.py .
 COPY llm_utils.py .
-COPY data/ ./data/
+COPY ./data/ ./data/
 # Copy service-specific code
-COPY main.py .
+COPY code_execution_service/main.py .
 # Set environment variables
 ENV PORT=8082
 ENV DEBUG=False
