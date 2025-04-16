@@ -10,6 +10,7 @@ import time
 from typing import (
     Any,
     Dict,
+    Tuple,
 )
 
 from dotenv import load_dotenv
@@ -214,6 +215,82 @@ Format your response as a JSON object with the following structure:
             "requires_visualization": False,
             "error": str(e),
         }
+
+
+def validate_generated_code(code: str) -> Tuple[bool, str]:
+    """
+    Validate the generated code for security issues.
+
+    Args:
+        code: The generated Python code
+
+    Returns:
+        Tuple of (is_valid, reason)
+    """
+    # List of forbidden patterns
+    forbidden_patterns = [
+        "import os",
+        "import sys",
+        "import subprocess",
+        "import shutil",
+        "__import__",
+        "eval(",
+        "exec(",
+        "open(",
+        "file(",
+        "os.system",
+        "os.popen",
+        "os.spawn",
+        "subprocess.run",
+        "subprocess.Popen",
+        "!rm",
+        "!del",
+        "!copy",
+        "!mv",
+        "!cp",
+        "!chmod",
+        "!chown",
+        "requests.get",
+        "requests.post",
+        "urllib",
+        "http.client",
+        "socket.",
+        "ftplib",
+        "smtplib",
+    ]
+
+    # Check for forbidden patterns
+    for pattern in forbidden_patterns:
+        if pattern in code:
+            return False, f"Code contains forbidden pattern: {pattern}"
+
+    # Check for imports other than allowed ones
+    import_lines = [
+        line.strip() for line in code.split("\n") if line.strip().startswith("import ") or " import " in line
+    ]
+    allowed_imports = [
+        "pandas",
+        "numpy",
+        "matplotlib",
+        "seaborn",
+        "scipy",
+        "math",
+        "random",
+        "datetime",
+        "collections",
+        "re",
+    ]
+
+    for line in import_lines:
+        is_allowed = False
+        for allowed in allowed_imports:
+            if allowed in line:
+                is_allowed = True
+                break
+        if not is_allowed and line:
+            return False, f"Code contains forbidden import: {line}"
+
+    return True, "Code passed security validation"
 
 
 def test_direct_llm_calls(llm_type):
