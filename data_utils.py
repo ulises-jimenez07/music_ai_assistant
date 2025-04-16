@@ -6,6 +6,8 @@ Handles loading, preprocessing, and joining of music datasets.
 import logging
 import os
 from typing import (
+    Any,
+    Dict,
     Optional,
     Tuple,
 )
@@ -240,6 +242,34 @@ def get_full_dataset() -> pd.DataFrame:
     return preprocess_data(joined_df)
 
 
+def get_dataset_schema() -> Dict[str, Dict[str, Any]]:
+    """
+    Get the schema of the datasets for documentation and code generation.
+
+    Returns:
+        Dictionary containing schema information for both datasets
+    """
+    metadata_df, characteristics_df = load_datasets()
+
+    schema: Dict[str, Dict[str, Any]] = {"metadata": {}, "characteristics": {}}
+
+    if metadata_df is not None:
+        schema["metadata"] = {
+            "columns": list(metadata_df.columns),
+            "dtypes": {col: str(metadata_df[col].dtype) for col in metadata_df.columns},
+            "sample": metadata_df.head(3).to_dict(orient="records"),
+        }
+
+    if characteristics_df is not None:
+        schema["characteristics"] = {
+            "columns": list(characteristics_df.columns),
+            "dtypes": {col: str(characteristics_df[col].dtype) for col in characteristics_df.columns},
+            "sample": characteristics_df.head(3).to_dict(orient="records"),
+        }
+
+    return schema
+
+
 if __name__ == "__main__":
     # Test data loading and preprocessing
     full_df = get_full_dataset()
@@ -248,5 +278,6 @@ if __name__ == "__main__":
         print("Columns: %s" % full_df.columns.tolist())
         print("\nSample data:")
         print(full_df.head(2))
+        print(get_dataset_schema())
     else:
         print("Failed to load and preprocess dataset")
