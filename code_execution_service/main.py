@@ -3,7 +3,6 @@ Code Execution Service for the Music AI Assistant.
 Handles safe execution of generated Python code.
 """
 
-# Standard Library Imports
 import base64
 import logging
 import os
@@ -11,28 +10,27 @@ import sys
 import traceback
 from contextlib import asynccontextmanager
 from io import BytesIO
-from typing import (  # Added Any for mypy fix
+from typing import (
     Any,
     Optional,
 )
 
-# Third-Party Imports
 import matplotlib.pyplot as plt
+
+# Add potential imports that were conditionally imported inside functions
 import numpy as np
 import pandas as pd
 import scipy.stats
 import seaborn as sns
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI  # Removed unused HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 from RestrictedPython import compile_restricted
 from RestrictedPython.Guards import safe_builtins
 from RestrictedPython.PrintCollector import PrintCollector
 
-# Local Application/Library Imports
 # Add parent directory to path to import shared modules
-# (Ideally, manage this with package structure or PYTHONPATH)
 # pylint: disable=wrong-import-position
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data_utils import get_full_dataset
@@ -46,7 +44,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # Global variables
-MUSIC_DF: Optional[pd.DataFrame] = None  # Added type hint
+MUSIC_DF = None
 
 
 def initialize_data():
@@ -58,7 +56,6 @@ def initialize_data():
     MUSIC_DF = get_full_dataset()
 
     if MUSIC_DF is not None:
-        # Pylint Fix: Use lazy formatting for logging
         logger.info("Initialized music dataset with %d rows", len(MUSIC_DF))
     else:
         logger.error("Failed to initialize music dataset.")
@@ -66,12 +63,10 @@ def initialize_data():
 
 # Define lifespan context manager for startup/shutdown events
 @asynccontextmanager
-async def lifespan(_app: FastAPI):  # Pylint Fix: Use underscore for unused 'app'
-    """Load data on startup."""
+async def lifespan(_app: FastAPI):
     # Startup: Initialize data
     initialize_data()
     yield
-    # Shutdown: Can add cleanup here if needed
 
 
 # Initialize FastAPI app with lifespan
@@ -87,13 +82,13 @@ PORT = 8082
 
 # Pydantic models for request/response
 class CodeRequest(BaseModel):
-    """Request model containing the Python code to execute."""  # Pylint Fix: Added docstring
+    """Request model containing the Python code to execute."""
 
     code: str
 
 
 class ExecutionResponse(BaseModel):
-    """Response model containing the execution results."""  # Pylint Fix: Added docstring
+    """Response model containing the execution results."""
 
     success: bool
     output: str
@@ -103,15 +98,14 @@ class ExecutionResponse(BaseModel):
     traceback: Optional[str] = None
 
 
-def create_restricted_globals() -> dict[str, Any]:  # Added return type hint
-    """Create restricted globals dictionary for safe code execution."""
+def create_restricted_globals():
+    """Create restricted globals for safe code execution."""
     # Start with safe builtins
-    safe_globals: dict[str, Any] = {
+    safe_globals = {
         "__builtins__": safe_builtins,
         "pd": pd,
         "plt": plt,
         "music_df": MUSIC_DF,
-        # Pass the class itself; an instance will be created per execution
         "_print_": PrintCollector,
         "BytesIO": BytesIO,
         "base64": base64,
@@ -132,42 +126,36 @@ async def execute_code(request: CodeRequest):
         code: The Python code to execute
 
     Returns:
-        JSON response with execution results (ExecutionResponse model)
+        JSON response with execution results
     """
     try:
         code = request.code
-        # Pylint Fix: Use lazy formatting for logging (no args needed here)
         logger.info("Received code execution request")
 
         # Validate the code first
         is_valid, reason = validate_generated_code(code)
         if not is_valid:
-            logger.warning("Code validation failed: %s", reason)
-            # Use the Pydantic model for consistency
-            return ExecutionResponse(
-                success=False,
-                error=f"Code validation failed: {reason}",
-                output="",
-                has_visualization=False,
-                visualization=None,
-                traceback=None,
-            )
+            return {
+                "success": False,
+                "error": reason,
+                "output": "",
+                "has_visualization": False,
+                "visualization": None,
+            }
 
         # Add code to capture the plot if generated
         code_with_capture = (
             code
             + """
-\n# Capture visualization if any
-viz_base64 = None # Initialize viz_base64
-try:
-    if plt.get_fignums(): # Check if any figures exist
-        buf = BytesIO()
-        plt.savefig(buf, format='png', bbox_inches='tight')
-        buf.seek(0)
-        viz_base64 = base64.b64encode(buf.read()).decode('utf-8')
-finally:
-    # Ensure all figures are closed regardless of success/failure
+# Capture visualization if any
+if plt.get_fignums():
+    buf = BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    viz_base64 = base64.b64encode(buf.read()).decode('utf-8')
     plt.close('all')
+else:
+    viz_base64 = None
 """
         )
 
@@ -175,28 +163,29 @@ finally:
             # Compile the code with restrictions
             byte_code = compile_restricted(code_with_capture, filename="<inline>", mode="exec")
 
-            # Prepare the restricted globals and locals for this execution
+            # Prepare the restricted globals
             restricted_globals = create_restricted_globals()
-            # mypy Fix: Added type hint here
             restricted_locals: dict[str, Any] = {}
 
-            # Create an instance of PrintCollector for this execution
-            _print_collector = restricted_globals["_print_"]()
-            restricted_globals["_print_"] = _print_collector
-
             # Execute the code
-            # Pylint Fix: Disable exec-used warning for this line
             # pylint: disable=exec-used
             exec(byte_code, restricted_globals, restricted_locals)
 
-            # Get the printed output from the instance
-            output = _print_collector.printed_text
+            # Get the printed output
+            print_collector = restricted_globals.get("_print_", lambda: "")
+            # Ensure output is a string
+            if callable(print_collector):
+                output = print_collector()
+                # If output is still not a string, convert it
+                if not isinstance(output, str):
+                    output = str(output)
+            else:
+                output = str(print_collector)
 
             # Check if a visualization was generated
+            has_visualization = "viz_base64" in restricted_locals and restricted_locals["viz_base64"] is not None
             visualization = restricted_locals.get("viz_base64")
-            has_visualization = visualization is not None
 
-            # Use the Pydantic model
             return ExecutionResponse(
                 success=True,
                 output=output if output else "",
@@ -206,7 +195,6 @@ finally:
                 traceback=None,
             )
         except Exception as e:
-            # Pylint Fix: Use lazy formatting and exc_info for traceback
             logger.error("Error executing restricted code: %s", e, exc_info=True)
             # Ensure plots are closed even if execution fails
             plt.close("all")
@@ -220,7 +208,6 @@ finally:
                 visualization=None,
             )
     except Exception as e:
-        # Pylint Fix: Use lazy formatting and exc_info for traceback
         logger.error("Error processing request: %s", e, exc_info=True)
         # Ensure plots are closed on outer errors too
         plt.close("all")
@@ -244,13 +231,11 @@ async def health_check():
     Returns:
         JSON response with health status
     """
-    data_loaded = MUSIC_DF is not None
-    row_count = len(MUSIC_DF) if data_loaded and MUSIC_DF is not None else 0
     return {
         "status": "healthy",
         "service": "code-execution-service",
-        "data_loaded": data_loaded,
-        "row_count": row_count,
+        "data_loaded": MUSIC_DF is not None,
+        "row_count": len(MUSIC_DF) if MUSIC_DF is not None else 0,
     }
 
 
