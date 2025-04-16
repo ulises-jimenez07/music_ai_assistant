@@ -20,6 +20,9 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama.llms import OllamaLLM
 
+# data utils for the schema
+from data_utils import get_dataset_schema
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("llm_test")
@@ -254,7 +257,80 @@ def test_direct_llm_calls(llm_type):
         return False
 
 
+def get_example_questions():
+    """Get example questions for the UI."""
+    return [
+        "What are the top 5 most popular songs in the dataset?",
+        "Show me the distribution of energy levels across different genres",
+        "Which artists have the highest average danceability scores?",
+        "Is there a correlation between valence and energy in the dataset?",
+        "What's the average tempo by decade?",
+        "Which emotions are most common in songs with high popularity?",
+        "What songs are good for exercise with high energy levels?",
+        "Show me similar artists to the most popular artists in the dataset",
+        "Which genres are best for work/study based on the data?",
+        "Compare the characteristics of songs good for parties vs. relaxation",
+    ]
+
+
+def test_code_generation(llm_type=None, num_questions=3):
+    """
+    Test the code generation functionality using example questions and the dataset schema.
+
+    Args:
+        llm_type: String indicating which LLM to use ('gemini' or 'gemma').
+                 If None, uses the DEFAULT_LLM value.
+        num_questions: Number of questions to test (default: 3)
+
+    Returns:
+        A list of results from the code generation.
+    """
+    print(f"\n----- Testing code generation with {llm_type or DEFAULT_LLM} -----")
+
+    try:
+        # Get the schema
+        schema = get_dataset_schema()
+        print("✅ Successfully loaded dataset schema")
+
+        # Get example questions
+        questions = get_example_questions()
+        num_questions = min(num_questions, len(questions))
+
+        test_questions = questions[:num_questions]
+
+        results = []
+
+        # Test each question
+        for i, question in enumerate(test_questions):
+            print(f'\nTesting question {i+1}/{num_questions}: "{question}"')
+
+            start_time = time.time()
+            result = generate_code_for_question(question, schema, llm_type)
+            elapsed_time = time.time() - start_time
+
+            result["question"] = question
+            result["elapsed_time"] = elapsed_time
+
+            print(f"✅ Generated code in {elapsed_time:.2f} seconds")
+            print(f"- Visualization type: {result.get('visualization_type', 'none')}")
+
+            # Get first 3 lines of the code
+            code_preview = "\n".join(result.get("code", "").split("\n")[:3]) + "..."
+            print(f"- Code preview: \n{code_preview}")
+
+            results.append(result)
+
+        print(f"\n✅ Successfully tested {num_questions} questions")
+        return results
+
+    except Exception as e:
+        logger.error("Error testing code generation: %s", str(e))
+        print(f"❌ Error testing code generation: {str(e)}")
+        return []
+
+
 if __name__ == "__main__":
     for llm_type in ["gemini", "gemma"]:
         print(f"\n===== TESTING {llm_type.upper()} =====")
         test_direct_llm_calls(llm_type)
+        test_code_generation(llm_type, num_questions=2)
