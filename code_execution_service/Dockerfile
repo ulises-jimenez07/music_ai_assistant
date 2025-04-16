@@ -11,9 +11,9 @@ COPY data/ ./data/
 # Copy service-specific code
 COPY main.py .
 # Set environment variables
-ENV PORT=8081
+ENV PORT=8082
 ENV DEBUG=False
 # Expose the port
-EXPOSE 8081
+EXPOSE 8082
 # Run the application
 CMD ["python", "main.py"]
