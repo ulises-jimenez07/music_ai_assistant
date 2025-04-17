@@ -1,0 +1,31 @@
+# Core dependencies
+fastapi[standard]==0.115.12
+google-cloud-aiplatform==1.36.0
+
+# Google Cloud dependencies
+google-cloud-storage
+google-generativeai
+
+# LLM dependencies
+langchain
+langchain-core
+langchain-google-genai
+langchain-ollama
+
+# Visualization
+matplotlib
+numpy
+ollama
+
+# Data processing
+pandas
+
+# Security
+pydantic==2.11.3
+python-dotenv==1.1.0
+requests==2.32.3
+RestrictedPython==8.0
+scipy==1.15.2
+seaborn==0.13.2
+streamlit>=1.32.0
+uvicorn==0.34.1
