@@ -17,7 +17,8 @@ dev = [
     "black",
     "pylint",
     "isort",
-    "autoflake"
+    "autoflake",
+    "types-requests"
 ]
 test = [
     "pytest",

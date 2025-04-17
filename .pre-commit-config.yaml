@@ -50,6 +50,7 @@ repos:
   rev: "v1.15.0"
   hooks:
   - id: mypy
+    additional_dependencies: ["types-requests==2.32.0.20250328"]
     args: [ --no-strict-optional, --ignore-missing-imports, --config-file=./pyproject.toml ]
 
 - repo: https://github.com/psf/black
