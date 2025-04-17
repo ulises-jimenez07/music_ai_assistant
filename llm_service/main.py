@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # Get environment variables
-PORT = 8081
+PORT = int(os.environ.get("LLM_SERVICE_PORT", 8081))
 
 # Global variables
 DATASET_SCHEMA = None

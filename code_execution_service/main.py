@@ -45,6 +45,8 @@ logger = logging.getLogger(__name__)
 
 # Global variables
 MUSIC_DF = None
+# Get environment variables
+PORT = int(os.environ.get("CODE_EXECUTION_SERVICE_URL", 8082))
 
 
 def initialize_data():
@@ -75,9 +77,6 @@ app = FastAPI(
     description="Service for safely executing generated Python code",
     lifespan=lifespan,
 )
-
-# Get environment variables
-PORT = 8082
 
 
 # Pydantic models for request/response
