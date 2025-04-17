@@ -93,7 +93,9 @@ def get_llm(llm_type=None):
 
         if llm_type.lower() == "gemma":
             try:
-                llm = OllamaLLM(model="gemma3")
+                custom_endpoint = os.environ.get("OLLAMA_HOST")
+                endpoint = "http://host.docker.internal:11434" if custom_endpoint else "http://localhost:11434"
+                llm = OllamaLLM(model="gemma3", base_url=endpoint)
                 logger.info("Loaded Gemma model from Ollama")
                 return llm
             except ImportError:

@@ -4,6 +4,6 @@ docker stop code-execution-service
 docker rm code-execution-service
 
 docker build -t code-generation-service:latest -f llm_service/Dockerfile .
-docker run -d -p 8081:8081 --name code-generation-service code-generation-service:latest
+docker run -p 8081:8081 --name code-generation-service --add-host host.docker.internal:host-gateway code-generation-service:latest
 docker stop code-generation-service
 docker rm code-generation-services

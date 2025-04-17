@@ -14,6 +14,8 @@ COPY llm_service/main.py .
 # Set environment variables
 ENV PORT=8081
 ENV DEBUG=False
+# Set default Ollama host (can be overridden at runtime)
+ENV OLLAMA_HOST=http://host.docker.internal:11434
 # Expose the port
 EXPOSE 8081
 # Run the application
