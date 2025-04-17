@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Frontend Streamlit application
+  streamlit-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music-app
+    ports:
+      - "8501:8501"
+    environment:
+      - LLM_SERVICE_URL=http://llm-service:8081
+      - CODE_EXECUTION_SERVICE_URL=http://code-execution-service:8082
+    depends_on:
+      - llm-service
+      - code-execution-service
+    networks:
+      - music-ai-network
+    restart: unless-stopped
+
+  # LLM Service for code generation
+  llm-service:
+    build:
+      context: .
+      dockerfile: llm_service/Dockerfile
+    container_name: code-generation-service
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - DEBUG=False
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - music-ai-network
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+
+  # Code Execution Service
+  code-execution-service:
+    build:
+      context: .
+      dockerfile: code_execution_service/Dockerfile
+    container_name: code-execution-service
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=8082
+      - DEBUG=False
+    networks:
+      - music-ai-network
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+
+networks:
+  music-ai-network:
+    driver: bridge
