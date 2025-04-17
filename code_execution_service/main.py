@@ -15,6 +15,7 @@ from typing import (
     Optional,
 )
 
+import matplotlib
 import matplotlib.pyplot as plt
 
 # Add potential imports that were conditionally imported inside functions
@@ -27,7 +28,14 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
 from RestrictedPython import compile_restricted
-from RestrictedPython.Guards import safe_builtins
+from RestrictedPython.Eval import (
+    default_guarded_getitem,
+    default_guarded_getiter,
+)
+from RestrictedPython.Guards import (
+    guarded_iter_unpack_sequence,
+    safe_builtins,
+)
 from RestrictedPython.PrintCollector import PrintCollector
 
 # Add parent directory to path to import shared modules
@@ -46,7 +54,7 @@ logger = logging.getLogger(__name__)
 # Global variables
 MUSIC_DF = None
 # Get environment variables
-PORT = int(os.environ.get("CODE_EXECUTION_SERVICE_URL", 8082))
+PORT = int(os.environ.get("CODE_EXECUTION_SERVICE_PORT", 8082))
 
 
 def initialize_data():
@@ -99,21 +107,80 @@ class ExecutionResponse(BaseModel):
 
 def create_restricted_globals():
     """Create restricted globals for safe code execution."""
-    # Start with safe builtins
-    safe_globals = {
-        "__builtins__": safe_builtins,
-        "pd": pd,
-        "plt": plt,
-        "music_df": MUSIC_DF,
+    # Add modules directly to the globals
+    restricted_globals = {
         "_print_": PrintCollector,
+        "_getattr_": getattr,
+        "_getitem_": default_guarded_getitem,
+        "_getiter_": default_guarded_getiter,
+        "_iter_unpack_sequence_": guarded_iter_unpack_sequence,
+        # Pre-import modules and add them directly
+        "np": np,
+        "numpy": np,
+        "pd": pd,
+        "pandas": pd,
+        "plt": plt,
+        "matplotlib": matplotlib,
         "BytesIO": BytesIO,
         "base64": base64,
-        "np": np,
         "sns": sns,
         "stats": scipy.stats,
+        # Add the music dataset
+        "music_df": MUSIC_DF,
     }
 
-    return safe_globals
+    # Set up a custom importer
+    # pylint: disable=unused-argument
+    def custom_importer(name, global_vars=None, local_vars=None, fromlist=(), level=0):
+        """
+        Custom importer function that restricts which modules can be imported.
+
+        Args:
+            name: The name of the module to import
+            global_vars: Global variables (unused)
+            local_vars: Local variables (unused)
+            fromlist: List of names to import from the module
+            level: Import level (unused)
+
+        Returns:
+            The imported module
+
+        Raises:
+            ImportError: If the module is not allowed
+        """
+        # Define a mapping of allowed imports
+        allowed_imports = {
+            "numpy": np,
+            "pandas": pd,
+            "seaborn": sns,
+            "scipy.stats": scipy.stats,
+            "base64": base64,
+            "matplotlib.pyplot": sys.modules["matplotlib.pyplot"],
+        }
+
+        # Handle direct imports from the mapping
+        if name in allowed_imports:
+            return allowed_imports[name]
+
+        # Handle special cases
+        if name == "io" and fromlist and "BytesIO" in fromlist:
+            # When someone does: from io import BytesIO
+            return sys.modules["io"]
+
+        if name == "matplotlib":
+            # Always return matplotlib module, the pyplot special case is handled
+            # in the main mapping for "matplotlib.pyplot"
+            return matplotlib
+
+        # Block all other imports
+        raise ImportError(f"Import of '{name}' is not allowed in restricted environment")
+
+    # Create restricted builtins
+    my_builtins = safe_builtins.copy()
+    my_builtins["__import__"] = custom_importer
+    restricted_globals["__builtins__"] = my_builtins
+
+    return restricted_globals
 
 
 @app.post("/api/execute", response_model=ExecutionResponse)
@@ -158,9 +225,15 @@ else:
 """
         )
 
+        # Special preprocessing for matplotlib.pyplot imports
+        # This helps handle the import in a restricted environment
+        modified_code = code_with_capture.replace(
+            "import matplotlib.pyplot as plt", "# matplotlib.pyplot already imported as plt"
+        )
+
         try:
             # Compile the code with restrictions
-            byte_code = compile_restricted(code_with_capture, filename="<inline>", mode="exec")
+            byte_code = compile_restricted(modified_code, filename="<inline>", mode="exec")
 
             # Prepare the restricted globals
             restricted_globals = create_restricted_globals()
