@@ -38,8 +38,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # Get environment variables
-DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
-PORT = int(os.environ.get("PORT", 8081))
+PORT = 8081
 
 # Global variables
 DATASET_SCHEMA = None
@@ -52,14 +51,12 @@ async def lifespan(_: FastAPI):
     # Initialize the data on startup
     initialize_data()
     yield
-    # Cleanup code would go here if needed
 
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Music AI Assistant LLM Service",
     description="Service for generating code to answer questions about music data",
-    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -84,13 +81,15 @@ class CodeResponse(BaseModel):
 
 def initialize_data():
     """Initialize the dataset schema."""
-    # Use function-level variable assignment instead of global statement
-    # This still modifies the module-level variable
+
     # pylint: disable=global-statement
     global DATASET_SCHEMA
     # Get the schema for code generation
     DATASET_SCHEMA = get_dataset_schema()
-    logger.info("Initialized dataset schema for code generation")
+    if DATASET_SCHEMA is not None:
+        logger.info("Initialized dataset schema for code generation.")
+    else:
+        logger.error("Failed to initialize dataset schema for code generation.")
 
 
 @app.post("/api/generate-code", response_model=CodeResponse)
@@ -115,9 +114,20 @@ async def generate_code(request: QuestionRequest):
         code = result.get("code", "")
         is_valid, reason = validate_generated_code(code)
 
-        # Add validation result to the response
+        # Add validation result to the result dictionary
         result["validation"] = {"is_valid": is_valid, "reason": reason}
-        return result
+
+        # Ensure all keys expected by CodeResponse are present in the result
+        if "explanation" not in result:
+            result["explanation"] = ""
+        if "visualization_type" not in result:
+            result["visualization_type"] = "none"
+        if "requires_visualization" not in result:
+            result["requires_visualization"] = False
+        if "llm_used" not in result:
+            result["llm_used"] = llm_type or os.environ.get("DEFAULT_LLM", "gemini")
+
+        return CodeResponse(**result)
     except Exception as e:
         logger.error("Error generating code: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
