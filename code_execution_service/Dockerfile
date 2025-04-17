@@ -5,6 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # Copy shared modules and data
+COPY .env .
 COPY data_utils.py .
 COPY llm_utils.py .
 COPY ./data/ ./data/

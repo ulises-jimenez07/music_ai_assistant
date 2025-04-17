@@ -26,7 +26,7 @@ from data_utils import get_dataset_schema
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("llm_test")
+logger = logging.getLogger("llm_utils")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -174,7 +174,7 @@ Format your response as a JSON object with the following structure:
         except Exception as e:
             # Handle parsing errors
             logger.warning("Failed to parse response: %s", str(e))
-
+            logger.warning(e)
             # Attempt a more direct approach if the parsing fails
             response = llm.invoke(
                 prompt.format(
