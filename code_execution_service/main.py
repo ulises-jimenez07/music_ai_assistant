@@ -172,7 +172,7 @@ else:
             exec(byte_code, restricted_globals, restricted_locals)
 
             # Get the printed output
-            print_collector = restricted_globals.get("_print_", lambda: "")
+            print_collector = restricted_locals.get("_print", lambda: "")
             # Ensure output is a string
             if callable(print_collector):
                 output = print_collector()
